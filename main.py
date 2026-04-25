@@ -4,7 +4,7 @@ import yt_dlp
 import asyncio
 
 # --- CẤU HÌNH ---
-TOKEN = 'MTQ5NzY1ODIwOTkzMzA2NjI1MA.GvCNnk.qrTPcft4Yt6AAilgU9lKZ0-0EJHdYJ-fxajddE'
+TOKEN = os.getenv('DISCORD_TOKEN')
 TARGET_VOICE_CHANNEL = 'Music' 
 YOUTUBE_URL = 'https://youtu.be/HW93WQAjkts'
 
