@@ -7,7 +7,7 @@ import asyncio
 # --- CẤU HÌNH ---
 TOKEN = os.getenv('DISCORD_TOKEN')
 TARGET_VOICE_CHANNEL = 'Music' 
-YOUTUBE_URL = 'https://www.youtube.com/watch?v=jfKfPfyJRdk' # Thử link Lofi này để tránh bị chặn IP
+YOUTUBE_URL = 'https://soundcloud.com/discover/sets/personalized-tracks::trung-t-nh-h-768344095:1384474006?si=0e2c408339ad4651a2c74d06bbc6aab8&utm_source=clipboard&utm_medium=text&utm_campaign=social_sharing' # Thử link Lofi này để tránh bị chặn IP
 
 intents = discord.Intents.default()
 intents.voice_states = True
