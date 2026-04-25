@@ -15,8 +15,20 @@ intents.message_content = True
 intents.members = True  # Quan trọng để kiểm tra số người trong phòng
 bot = commands.Bot(command_prefix='!', intents=intents)
 
-# Cấu hình yt-dlp và ffmpeg
-ytdl_opts = {'format': 'bestaudio/best', 'quiet': True, 'noplaylist': True}
+
+# Cấu hình yt-dlp mới để lách bộ lọc YouTube
+ytdl_opts = {
+    'format': 'bestaudio/best',
+    'quiet': True,
+    'noplaylist': True,
+    'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+    'nocheckcertificate': True,
+    'ignoreerrors': True,
+    'no_warnings': True,
+    'default_search': 'auto',
+    'source_address': '0.0.0.0' # Quan trọng cho server
+}
+
 ffmpeg_opts = {
     'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
     'options': '-vn'
