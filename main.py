@@ -6,14 +6,6 @@ import asyncio
 
 # --- CẤU HÌNH ---
 TOKEN = os.getenv('DISCORD_TOKEN')
-
-if TOKEN is None:
-    print("❌ LỖI: Railway không tìm thấy biến có tên là DISCORD_TOKEN!")
-    print("Vui lòng kiểm tra lại tab Variables trên Railway.")
-else:
-    print("✅ Đã tìm thấy Token, đang đăng nhập...")
-    bot.run(TOKEN)
-
 TARGET_VOICE_CHANNEL = 'Music' 
 YOUTUBE_URL = 'https://youtu.be/HW93WQAjkts'
 
