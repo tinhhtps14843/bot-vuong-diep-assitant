@@ -8,8 +8,7 @@ import asyncio
 TOKEN = os.getenv('DISCORD_TOKEN')
 TARGET_VOICE_CHANNEL = 'Music' 
 
-# Lấy URL từ biến môi trường YOUTUBE_URL trên Railway
-# Nếu không có biến trên Railway, nó sẽ dùng link mặc định này
+# Ưu tiên lấy URL từ biến YOUTUBE_URL trên Railway
 DEFAULT_URL = 'https://www.youtube.com/watch?v=jfKfPfyJRdk'
 YOUTUBE_URL = os.getenv('YOUTUBE_URL', DEFAULT_URL)
 
@@ -19,12 +18,13 @@ intents.message_content = True
 intents.members = True 
 bot = commands.Bot(command_prefix='!', intents=intents)
 
-# Cấu hình yt-dlp
+# Cấu hình yt-dlp tối ưu (Tắt noplaylist để xử lý được cả link tập hợp)
 ytdl_opts = {
     'format': 'bestaudio/best',
     'quiet': True,
-    'noplaylist': True,
-    'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    'noplaylist': False, # Cho phép đọc playlist để lấy bài đầu tiên
+    'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'extract_flat': 'in_playlist', # Chỉ lấy thông tin, không tải cả playlist
 }
 
 ffmpeg_opts = {
@@ -43,7 +43,6 @@ async def on_voice_state_update(member, before, after):
         vc = member.guild.voice_client
         if vc is None:
             try:
-                # Đợi tối đa 30s để handshake
                 vc = await after.channel.connect(timeout=30.0, reconnect=True)
             except Exception as e:
                 print(f"Lỗi kết nối Voice: {e}")
@@ -54,28 +53,44 @@ async def on_voice_state_update(member, before, after):
                 loop = asyncio.get_event_loop()
                 
                 def fetch_info():
-                    # Thêm các tùy chọn an toàn hơn để tránh NoneType
                     with yt_dlp.YoutubeDL(ytdl_opts) as ydl:
+                        # Trích xuất thông tin bài hát
                         return ydl.extract_info(YOUTUBE_URL, download=False)
 
                 print(f"⏳ Đang xử lý link: {YOUTUBE_URL}")
                 info = await loop.run_in_executor(None, fetch_info)
                 
                 if info is None:
-                    print("❌ Lỗi: Không thể lấy thông tin từ URL này (YouTube chặn IP).")
+                    print("❌ Lỗi: Không lấy được dữ liệu.")
                     return
 
-                # Cách lấy URL thông minh: Thử nhiều cách để tránh lỗi NoneType
+                # XỬ LÝ LẤY LINK STREAM (Hỗ trợ cả Playlist và bài lẻ)
                 url2 = None
-                if 'url' in info:
-                    url2 = info['url']
-                elif 'formats' in info and len(info['formats']) > 0:
+                title = "Unknown Title"
+
+                # Nếu là Playlist, lấy bài đầu tiên
+                if 'entries' in info:
+                    print("📂 Phát hiện Playlist, đang chọn bài đầu tiên...")
+                    entry = info['entries'][0]
+                    # Nếu entry chưa có link stream, phải extract lại bài đó
+                    if 'url' not in entry or 'formats' not in entry:
+                        with yt_dlp.YoutubeDL(ytdl_opts) as ydl:
+                            entry = ydl.extract_info(entry['url'], download=False)
+                    url2 = entry.get('url')
+                    title = entry.get('title')
+                else:
+                    # Nếu là bài đơn lẻ
+                    url2 = info.get('url')
+                    title = info.get('title')
+
+                # Nếu vẫn chưa tìm thấy url2, tìm trong formats
+                if not url2 and 'formats' in info:
                     url2 = info['formats'][0]['url']
 
                 if url2:
                     source = discord.FFmpegOpusAudio(url2, **ffmpeg_opts, executable='ffmpeg')
                     vc.play(source)
-                    print(f"🎵 Đã lên nhạc: {info.get('title', 'Unknown Title')}")
+                    print(f"🎵 Đã lên nhạc: {title}")
                 else:
                     print("❌ Không tìm thấy link stream nhạc hợp lệ.")
                 
