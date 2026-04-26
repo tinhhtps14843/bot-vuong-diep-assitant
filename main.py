@@ -51,23 +51,33 @@ async def on_voice_state_update(member, before, after):
         
         if not vc.is_playing():
             try:
-                # Dùng thread để không làm treo Bot khi đang load nhạc từ YouTube/SoundCloud
                 loop = asyncio.get_event_loop()
                 
                 def fetch_info():
+                    # Thêm các tùy chọn an toàn hơn để tránh NoneType
                     with yt_dlp.YoutubeDL(ytdl_opts) as ydl:
                         return ydl.extract_info(YOUTUBE_URL, download=False)
 
-                print(f"⏳ Đang lấy thông tin từ: {YOUTUBE_URL}")
+                print(f"⏳ Đang xử lý link: {YOUTUBE_URL}")
                 info = await loop.run_in_executor(None, fetch_info)
                 
-                # Lấy link stream trực tiếp
-                url2 = info.get('url') or info.get('formats')[0].get('url')
-                
-                # Phát nhạc với FFmpeg (dùng cho Linux Railway)
-                source = discord.FFmpegOpusAudio(url2, **ffmpeg_opts, executable='ffmpeg')
-                vc.play(source)
-                print(f"🎵 Đang phát: {info.get('title', 'Music')}")
+                if info is None:
+                    print("❌ Lỗi: Không thể lấy thông tin từ URL này (YouTube chặn IP).")
+                    return
+
+                # Cách lấy URL thông minh: Thử nhiều cách để tránh lỗi NoneType
+                url2 = None
+                if 'url' in info:
+                    url2 = info['url']
+                elif 'formats' in info and len(info['formats']) > 0:
+                    url2 = info['formats'][0]['url']
+
+                if url2:
+                    source = discord.FFmpegOpusAudio(url2, **ffmpeg_opts, executable='ffmpeg')
+                    vc.play(source)
+                    print(f"🎵 Đã lên nhạc: {info.get('title', 'Unknown Title')}")
+                else:
+                    print("❌ Không tìm thấy link stream nhạc hợp lệ.")
                 
             except Exception as e:
                 print(f"Lỗi phát nhạc: {e}")
