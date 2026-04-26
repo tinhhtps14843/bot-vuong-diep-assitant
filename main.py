@@ -3,6 +3,7 @@ import discord
 from discord.ext import commands
 import yt_dlp
 import asyncio
+import random # Thêm để xáo trộn nhạc
 
 # --- CẤU HÌNH ---
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -23,29 +24,35 @@ song_queue = []
 ytdl_opts = {
     'format': 'bestaudio/best',
     'quiet': True,
-    'noplaylist': False, # Cho phép lấy toàn bộ danh sách
-    'extract_flat': True, # Lấy thông tin nhanh, không extract link stream ngay lập tức
+    'noplaylist': False,
+    'extract_flat': True, # CỰC QUAN TRỌNG: Để không bị tràn RAM khi nạp list dài
 }
 
 ffmpeg_opts = {
     'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
-    'options': '-vn -b:a 64k -threads 1' 
+    'options': '-vn -b:a 64k -threads 1' # Bitrate thấp để ổn định trên Railway
 }
 
 def play_next(vc):
-    """Hàm tự động phát bài tiếp theo trong hàng đợi"""
+    """Hàm tự động bốc bài tiếp theo"""
     if len(song_queue) > 0:
         next_song = song_queue.pop(0)
         
-        # Vì dùng extract_flat: True nên giờ mới cần lấy link stream thực tế (url)
-        with yt_dlp.YoutubeDL({'format': 'bestaudio/best', 'quiet': True}) as ydl:
-            info = ydl.extract_info(next_song['url'], download=False)
-            url2 = info['url']
-        
-        source = discord.FFmpegOpusAudio(url2, **ffmpeg_opts)
-        # Tham số after sẽ gọi lại chính hàm này khi bài hát kết thúc
-        vc.play(source, after=lambda e: play_next(vc))
-        print(f"🎵 Đang phát: {next_song['title']}")
+        try:
+            # Chỉ lấy link stream khi thực sự bắt đầu hát bài đó
+            with yt_dlp.YoutubeDL({'format': 'bestaudio/best', 'quiet': True}) as ydl:
+                info = ydl.extract_info(next_song['url'], download=False)
+                url2 = info['url']
+            
+            source = discord.FFmpegOpusAudio(url2, **ffmpeg_opts)
+            
+            # Sử dụng bot.loop.call_soon_threadsafe để tránh lỗi xung đột luồng khi gọi play_next
+            vc.play(source, after=lambda e: bot.loop.call_soon_threadsafe(play_next, vc))
+            print(f"🎵 Đang phát: {next_song['title']}")
+            
+        except Exception as e:
+            print(f"⚠️ Lỗi khi phát bài này, đang thử bài tiếp theo: {e}")
+            play_next(vc)
     else:
         print("✅ Đã phát hết danh sách nhạc.")
 
@@ -76,20 +83,23 @@ async def on_voice_state_update(member, before, after):
                 print(f"⏳ Đang nạp danh sách: {YOUTUBE_URL}")
                 info = await loop.run_in_executor(None, fetch_info)
                 
+                new_songs = []
                 if 'entries' in info:
-                    # Nạp tất cả bài hát vào hàng đợi
                     for entry in info['entries']:
-                        song_queue.append({
+                        new_songs.append({
                             'url': entry.get('url') or entry.get('webpage_url'),
                             'title': entry.get('title', 'Unknown Title')
                         })
-                    print(f"📂 Đã thêm {len(info['entries'])} bài vào hàng đợi.")
+                    
+                    # --- NÂNG CẤP: XÁO TRỘN NHẠC ---
+                    random.shuffle(new_songs)
+                    song_queue.extend(new_songs)
+                    print(f"📂 Đã nạp và xáo trộn {len(new_songs)} bài.")
                 else:
-                    # Nếu chỉ là 1 bài đơn lẻ
                     song_queue.append({'url': info['url'], 'title': info['title']})
 
-                # Bắt đầu phát bài đầu tiên
-                play_next(vc)
+                if not vc.is_playing():
+                    play_next(vc)
                 
             except Exception as e:
                 print(f"❌ Lỗi xử lý playlist: {e}")
@@ -99,7 +109,7 @@ async def on_voice_state_update(member, before, after):
     if vc and vc.channel:
         real_members = [m for m in vc.channel.members if not m.bot]
         if len(real_members) == 0:
-            song_queue.clear() # Xóa sạch hàng đợi
+            song_queue.clear()
             if vc.is_playing():
                 vc.stop()
             await vc.disconnect()
