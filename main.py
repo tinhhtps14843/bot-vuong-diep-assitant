@@ -29,7 +29,7 @@ ytdl_opts = {
 
 ffmpeg_opts = {
     'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
-    'options': '-vn'
+    'options': '-vn -b:a 128k -threads 1' # Ép dùng 1 luồng duy nhất để không bị quá tải
 }
 
 @bot.event
@@ -50,6 +50,10 @@ async def on_voice_state_update(member, before, after):
         
         if not vc.is_playing():
             try:
+                # Dọn dẹp các tiến trình FFmpeg cũ còn sót lại (nếu có)
+                if vc.source:
+                    vc.source.cleanup()
+
                 loop = asyncio.get_event_loop()
                 
                 def fetch_info():
