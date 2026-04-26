@@ -88,7 +88,7 @@ async def on_voice_state_update(member, before, after):
                     url2 = info['formats'][0]['url']
 
                 if url2:
-                    source = discord.FFmpegOpusAudio(url2, **ffmpeg_opts, executable='ffmpeg')
+                    source = discord.FFmpegOpusAudio(url2, **ffmpeg_opts)
                     vc.play(source)
                     print(f"🎵 Đã lên nhạc: {title}")
                 else:
