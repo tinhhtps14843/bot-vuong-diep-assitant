@@ -29,7 +29,9 @@ ytdl_opts = {
 # NÂNG CẤP 1: Cấu hình FFmpeg cực nhẹ để né lỗi -9 (kill process)
 ffmpeg_opts = {
     'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
-    'options': '-vn -b:a 128k -threads 1 -af "volume=0.8"' # Giảm tải CPU
+    'options': '-vn -ac 2 -ar 48000 -b:a 64k -threads 1' 
+    # -b:a 64k: Giảm chất lượng nhạc xuống một chút để nhẹ máy
+    # -ac 2 -ar 48000: Chuẩn âm thanh của Discord
 }
 
 @bot.event
